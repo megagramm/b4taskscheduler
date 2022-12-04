@@ -1,0 +1,3 @@
+#!/bin/bash
+
+dd if=/dev/urandom bs=128k count=1024
