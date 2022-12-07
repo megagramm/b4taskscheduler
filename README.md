@@ -1,7 +1,8 @@
 # Менеджер задач для sdman
 Программа запускает асинхронно несколько потоков и следит за их работой. По окончании записывает резульатты в БД.
 
-## Andrey Grey megagramm@gmail.com
+#### Andrey Grey megagramm@gmail.com
+#### Yuri Morin yurkiywork@gmail.com
 
 ## Возможности:
 Поумолчанию работает 4 потока.
@@ -10,6 +11,9 @@
 
 Ошибки пишутся в $this->errorlog_path.
 Ошибки процессов proc_open в $this->proc_errorlog_path.
+
+## Bugs:
+- Не далеко не всегда считываются данные из pipe[1]
 
 ## TODO:
 Получает данные из БД (mysql)

@@ -8,8 +8,8 @@ class B4TaskScheduler
 {
     public function __construct()
     {
-        $this->task_count_in_stack = 4;
-        $this->select_process_runing_method = 'proc_open'; // Метод работы с процессами // Todo: Сделать альтернативные
+        $this->task_count_in_stack = 4; // кол-во одновременно работающих процессов
+        $this->process_runing_method = 'proc_open'; // Метод работы с процессами
 
         $this->proc_errorlog_path = "b4_error-output.txt";
         $this->errorlog_path = "b4_error.log";
@@ -41,7 +41,7 @@ class B4TaskScheduler
     protected function log_error(string $text)
     {
         $handle = fopen($this->errorlog_path, "a");
-		$line = date("Y-m-d H:i:s").' | '.$text.PHP_EOL;
+        $line = date("Y-m-d H:i:s") . ' | ' . $text . PHP_EOL;
         fwrite($handle, $line);
         fclose($handle);
     }
@@ -61,9 +61,8 @@ class B4TaskScheduler
         );
 
         echo json_encode($output) . PHP_EOL;
-		$this->log_error($message);
-        flush();
-        ob_flush();
+        $this->log_error($message);
+
     }
     /**
      * Загружаем данные из json
@@ -87,7 +86,7 @@ class B4TaskScheduler
         }
         $array = json_decode($file_data, true);
         if (!is_array($array)) {
-            $this->send_message('error', 'Json doesn`t decoded');
+            $this->send_message('error', 'JSON doesn`t decoded');
             $this->task_array_empty = true;
             exit();
         }
@@ -101,8 +100,26 @@ class B4TaskScheduler
      */
     public function load_from_db()
     {
+        $host = 'localhost';
+        $dbname = 'b4com';
+        $username = 'b4com';
+        $password = 'qwerty';
 
+        $db_array = [];
+
+        try {
+            $conn = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+            // echo "Connected to $dbname at $host successfully.";
+        } catch (PDOException $pe) {
+            die("Could not connect to the database $dbname :" . $pe->getMessage());
+        }
+        $res = $conn->query("SELECT * FROM taskscheduler;");
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+            $db_array[] = $row;
+        }
+        $this->task_array = $db_array;
     }
+
     /**
      * Создаём стек для работы
      *
@@ -115,6 +132,7 @@ class B4TaskScheduler
         //отсекаем у исходного массива взятые элементы
         array_splice($this->task_array, 0, $this->task_count_in_stack);
     }
+
     /**
      * Создаем процесс
      *
@@ -136,21 +154,36 @@ class B4TaskScheduler
         $task_data['status'] = proc_get_status($task_data['process']);
     }
 
-    public function run_procs()
+    protected function add_task_in_stack()
     {
-        if ($this->task_array_empty == true) {
-            $this->send_message('error', 'run_proc failed to start');
-            exit();
-        }
+        // Todo: НЕ РАБОТАЕТ, ПЕРЕПИСАТЬ
+
+        //проверить не пустой ли исходный массив
         if (empty($this->task_array)) {
-            $this->send_message('error', 'Task array is empty');
-            exit();
+            return;
         }
 
-        // проверяем массив задач. // Todo: перенести проверку массива в логичное место
+        //добавить элементы в стек
+        //берём в стек первые задачи
+        $task = array_slice($this->task_array, 0, 1, true);
+        var_dump($task);
+        //отсекаем у исходного массива взятые элементы
+        array_splice($this->task_array, 0, 1);
+
+        // добавляем в стек задачу
+
+        // запустить процесс
+        // $this->make_proc($task, 0);
+    }
+    /**
+     * Проверяет массив перед запуском. Правильная ли структура.
+     * Неподходящие элементы убирает.
+     *
+     * @return void
+     */
+    public function check_task_array()
+    {
         foreach ($this->task_array as $task_array_id => &$task_data) {
-            // todo: добавить логирование неправильных задач
-            // Todo:
 
             if (!isset($task_data['id'])) {
                 $this->send_message('error', "Array index {$task_array_id}: field is missing");
@@ -162,11 +195,20 @@ class B4TaskScheduler
                 unset($this->task_array[$task_array_id]);
             }
 
-            if (!isset($task_data['date'])) {
-                $this->send_message('error', "Task  {$task_data['id']}: date is missing");
-                unset($this->task_array[$task_array_id]);
-            }
+            // if (!isset($task_data['date'])) {
+            //     $this->send_message('error', "Task  {$task_data['id']}: date is missing");
+            //     unset($this->task_array[$task_array_id]);
+            // }if (empty($this->task_array)) {
+            $this->send_message('error', 'Task array is empty');
+            exit();
+        }
+    }
 
+    public function run_procs()
+    {
+        if ($this->task_array_empty == true) {
+            $this->send_message('error', 'run_proc failed to start');
+            exit();
         }
 
         $this->make_task_stack();
@@ -178,7 +220,6 @@ class B4TaskScheduler
             }
         }
 
-        // exit();
         $i = 0;
         if (isset($this->task_stack) && !empty($this->task_stack)) {
             while (!empty($this->task_stack)) {
@@ -188,26 +229,46 @@ class B4TaskScheduler
 
                     if (!feof($task_data['pipes'][1])) {
 
-                        $task_data['pipe1_data'] .= fgets($task_data['pipes'][1], 1024);
+                        $task_data['pipe1_data'] .= fgets($task_data['pipes'][1]);
                         echo fgets($task_data['pipes'][1]);
                         // exit;
                     } else {
+                        fclose($task_data['pipes'][0]);
                         echo 'Stack id(' . $task_stack_id . ') is closed, task_id is ' . $task_data['id'] . PHP_EOL;
+                        fclose($task_data['pipes'][1]);
+                        proc_close($task_data['process']);
                         unset($this->task_stack[$task_stack_id]);
+                        //добавить следующую задачу
+                        $this->add_task_in_stack();
                     }
-                    // else {
-                    //     fclose($task_data['pipes'][1]);
-                    //     proc_close($task_data['process']);
-                    //     echo 'Stack id(' . $task_stack_id . ') is closed, task_id is ' . $task_data['id'] . PHP_EOL;
-                    //     unset($this->task_stack[0]);
-                    // }
-
                 }
             }
         }
     }
 
-    public function select_process_runing_method()
+    /**
+     * Назначает принудительно метод обработки процессов.
+     *
+     * @param string $method_type
+     * @return void
+     */
+    public function set_process_running_method(string $method = 'proc_open')
+    {
+        if (in_array($method, ['proc_open', 'ptreads', 'parallel'])) {
+            $this->process_runing_method = $method;
+        } else {
+            $this->process_runing_method = 'proc_open';
+        }
+    }
+    /**
+     * Определяет каким методом работать с процессами:
+     *     proc_open
+     *     ptreads         нужен php с zts
+     *     parallel         нужен php с zts
+     *
+     * @return void
+     */
+    public function get_process_runing_method()
     {
         if (PHP_ZTS == 0) {
             $this->select_process_runing_method = 'proc_open';
@@ -222,7 +283,8 @@ class B4TaskScheduler
 
 $file = 'commands.json';
 $job = new B4TaskScheduler;
-$job->select_process_runing_method();
+$job->get_process_runing_method();
 
-$job->load_from_json($file);
+// $job->load_from_json($file);
+$job->load_from_db();
 $job->run_procs();
