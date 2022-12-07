@@ -6,6 +6,7 @@
 
 class B4TaskScheduler
 {
+    
     public function __construct()
     {
         $this->task_count_in_stack = 4; // кол-во одновременно работающих процессов
@@ -113,7 +114,7 @@ class B4TaskScheduler
         } catch (PDOException $pe) {
             die("Could not connect to the database $dbname :" . $pe->getMessage());
         }
-        $res = $conn->query("SELECT * FROM taskscheduler;");
+        $res = $conn->query("SELECT id,command FROM taskscheduler;");
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $db_array[] = $row;
         }
@@ -164,16 +165,25 @@ class B4TaskScheduler
         }
 
         //добавить элементы в стек
-        //берём в стек первые задачи
+        //берём в стек первую задачу из task_array
         $task = array_slice($this->task_array, 0, 1, true);
-        var_dump($task);
-        //отсекаем у исходного массива взятые элементы
+        // var_dump($task);
+        //отсекаем у исходного массива взятый элемент
         array_splice($this->task_array, 0, 1);
 
         // добавляем в стек задачу
-
+        // print_r($this->task_array);
+        // print_r($task[0]);
+        $this->task_stack[] = $task[0];
+        
+        // правильно берем последний элементы стека для создания процесса
+        $last_id_of_task_stack = array_keys($this->task_stack)[count($this->task_stack)-1];
+        // var_dump($this->task_stack);
         // запустить процесс
-        // $this->make_proc($task, 0);
+        // echo 'start make'.PHP_EOL;
+        $this->make_proc($this->task_stack[$last_id_of_task_stack], $last_id_of_task_stack);
+        // echo 'stop make'.PHP_EOL;
+        // exit;
     }
     /**
      * Проверяет массив перед запуском. Правильная ли структура.
@@ -199,10 +209,10 @@ class B4TaskScheduler
             //     $this->send_message('error', "Task  {$task_data['id']}: date is missing");
             //     unset($this->task_array[$task_array_id]);
             // }if (empty($this->task_array)) {
-            $this->send_message('error', 'Task array is empty');
-            exit();
+			$this->send_message('error', 'Task array is empty');
+			exit();
+		}
         }
-    }
 
     public function run_procs()
     {

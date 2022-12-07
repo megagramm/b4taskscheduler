@@ -73,3 +73,14 @@ sh: 1: sleep3: not found
 sh: 1: sleep3: not found
 sh: 1: pwd: pwd: I/O error
 sh: 1: pwd: pwd: I/O error
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
+whoami: write error: Broken pipe
