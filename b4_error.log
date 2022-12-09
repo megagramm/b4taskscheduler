@@ -36,3 +36,89 @@
 2022-12-07 11:56:23 | Task array is empty
 2022-12-07 11:58:57 | Task array is empty
 2022-12-07 11:59:50 | Task array is empty
+2022-12-08 16:47:09 | Task 1: command field is missing
+2022-12-08 16:56:59 | Task 1: command field is missing
+2022-12-08 16:57:02 | Task 1: command field is missing
+2022-12-08 16:57:04 | Task 1: command field is missing
+2022-12-08 17:34:54 | Task 1: 'command' field is missing
+2022-12-08 17:50:30 | Task 1: 'command' field is missing or empty
+2022-12-08 17:50:30 | Task 1: 'run_on' field is missing
+2022-12-08 17:50:30 | Task 1: 'cron' field is missing
+2022-12-08 17:50:30 | Task 1: 'cron' field is missing or empty
+2022-12-08 17:51:01 | Task 1: 'command' field is missing or empty
+2022-12-08 17:51:01 | Task 1: 'run_on' field is missing
+2022-12-08 17:51:01 | Task 1: 'cron' field is missing
+2022-12-08 17:51:01 | Task 1: 'cron' field is missing or empty
+2022-12-08 17:52:44 | Task 1: 'command' field is missing or empty
+2022-12-08 17:52:44 | Task 1: 'run_on' field is missing
+2022-12-08 17:52:44 | Task 1: 'cron' field is missing
+2022-12-08 17:52:44 | Task 1: 'cron' field is missing or empty
+2022-12-08 17:53:15 | Task 1: 'command' field is missing or empty
+2022-12-08 17:53:15 | Task 1: 'run_on' field is missing
+2022-12-08 17:53:15 | Task 1: 'cron' field is missing
+2022-12-08 17:53:15 | Task 1: 'status' field is missing or empty
+2022-12-08 17:54:11 | Task 1: 'command' field is missing or empty
+2022-12-08 17:54:11 | Task 1: 'run_on' field is missing
+2022-12-08 17:54:11 | Task 1: 'cron' field is missing
+2022-12-08 17:54:11 | Task 1: 'status' field is missing or empty
+2022-12-08 17:54:28 | Task 1: 'command' field is missing or empty
+2022-12-08 17:57:01 | Task 1: 'command' field is missing or empty
+2022-12-08 17:57:11 | Task 1: 'command' field is missing or empty
+2022-12-08 17:58:33 | Task 1: 'command' field is missing or empty
+2022-12-08 18:01:20 | Task 1: 'command' field is missing or empty
+2022-12-08 18:01:20 | Task 2: 'command' field is missing or empty
+2022-12-08 18:01:20 | Task 3: 'run_on' field is missing
+2022-12-08 18:01:20 | Task 4: 'run_on' field is missing
+2022-12-08 18:01:20 | Task 5: 'run_on' field is missing
+2022-12-08 18:01:20 | Task 6: 'run_on' field is missing
+2022-12-08 18:01:20 | Task 7: 'run_on' field is missing
+2022-12-08 18:01:20 | Task 8: 'run_on' field is missing
+2022-12-08 18:01:20 | Task 9: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 1: 'command' field is missing or empty
+2022-12-08 18:02:56 | Task 2: 'command' field is missing or empty
+2022-12-08 18:02:56 | Task 3: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 4: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 5: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 6: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 7: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 8: 'run_on' field is missing
+2022-12-08 18:02:56 | Task 9: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 1: 'command' field is missing or empty
+2022-12-08 18:06:14 | Task 2: 'command' field is missing or empty
+2022-12-08 18:06:14 | Task 3: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 4: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 5: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 6: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 7: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 8: 'run_on' field is missing
+2022-12-08 18:06:14 | Task 9: 'run_on' field is missing
+2022-12-08 18:06:58 | Task 1: 'command' field is missing or empty
+2022-12-08 18:06:58 | Task 2: 'command' field is missing or empty
+2022-12-08 18:06:58 | Task 3: 'cron' field is missing
+2022-12-08 18:06:58 | Task 4: 'cron' field is missing
+2022-12-08 18:06:58 | Task 5: 'cron' field is missing
+2022-12-08 18:06:58 | Task 6: 'cron' field is missing
+2022-12-08 18:06:58 | Task 7: 'cron' field is missing
+2022-12-08 18:06:58 | Task 8: 'cron' field is missing
+2022-12-08 18:06:58 | Task 9: 'cron' field is missing
+2022-12-08 18:07:18 | Task 1: 'command' field is missing or empty
+2022-12-08 18:07:18 | Task 2: 'command' field is missing or empty
+2022-12-08 18:07:18 | Task 3: 'status' field is missing or empty
+2022-12-08 18:07:18 | Task 4: 'status' field is missing or empty
+2022-12-08 18:07:18 | Task 5: 'status' field is missing or empty
+2022-12-08 18:07:18 | Task 6: 'status' field is missing or empty
+2022-12-08 18:07:18 | Task 7: 'status' field is missing or empty
+2022-12-08 18:07:18 | Task 8: 'status' field is missing or empty
+2022-12-08 18:07:18 | Task 9: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 1: 'command' field is missing or empty
+2022-12-08 18:07:45 | Task 2: 'command' field is missing or empty
+2022-12-08 18:07:45 | Task 3: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 4: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 5: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 6: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 7: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 8: 'status' field is missing or empty
+2022-12-08 18:07:45 | Task 9: 'status' field is missing or empty
+2022-12-08 18:08:46 | Task 1: 'command' field is missing or empty
+2022-12-08 18:08:46 | Task 2: 'command' field is missing or empty
+2022-12-08 18:15:19 | Task 1: 'command' field is missing or empty
