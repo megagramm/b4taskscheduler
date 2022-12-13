@@ -122,3 +122,17 @@
 2022-12-08 18:08:46 | Task 1: 'command' field is missing or empty
 2022-12-08 18:08:46 | Task 2: 'command' field is missing or empty
 2022-12-08 18:15:19 | Task 1: 'command' field is missing or empty
+2022-12-13 16:30:14 | Не удалось записать в БД: taskscheduler_id=0, result_status=1, result_text=Что-то получили от программы started_at=2022-12-13 16:30:00, stoped_at=2022-12-13 16:30:01, microtime=qweasd
+2022-12-13 17:09:24 | Не удалось записать в БД: taskscheduler_id=, result_status=1, result_text=Что-то получили от программы started_at=2022-12-13 17:09:00, stoped_at=2022-12-13 17:09:01, microtime=qweasd
+2022-12-13 17:16:33 | Не удалось записать в БД: taskscheduler_id=, result_status=1, result_text=Что-то получили от программы started_at=2022-12-13 17:16:00, stoped_at=2022-12-13 17:16:01, microtime=qweasd
+2022-12-13 17:18:29 | Не удалось записать в БД: taskscheduler_id=, result_status=1, result_text=Что-то получили от программы started_at=2022-12-13 17:18:00, stoped_at=2022-12-13 17:18:01, microtime=qweasd
+2022-12-13 17:19:34 | Не удалось записать в БД: taskscheduler_id=, result_status=1, result_text=Что-то получили от программы started_at=2022-12-13 17:19:00, stoped_at=2022-12-13 17:19:01, microtime=qweasd
+2022-12-13 17:49:49 | Не удалось записать в БД: taskscheduler_id=, result_status=, result_text=Создана задача started_at=2022-12-13 17:49:49, stoped_at=, microtime=
+2022-12-13 17:50:16 | Не удалось записать в БД: taskscheduler_id=, result_status=, result_text=Создана задача started_at=2022-12-13 17:50:16, stoped_at=, microtime=
+2022-12-13 18:11:14 | Не удалось записать в БД: taskscheduler_id=, result_status=, result_text=Создана задача started_at=2022-12-13 18:11:14, stoped_at=, microtime=
+2022-12-13 18:24:09 | Не удалось записать в БД: taskscheduler_id=30, result_status=, result_text=Создана задача started_at=2022-12-13 18:24:09, stoped_at=, microtime=
+2022-12-13 18:24:44 | Не удалось записать в БД: taskscheduler_id=31, result_status=, result_text=Создана задача started_at=2022-12-13 18:24:44, stoped_at=, microtime=
+2022-12-13 18:25:23 | Не удалось записать в БД: taskscheduler_id=32, result_status=, result_text=Создана задача started_at=2022-12-13 18:25:23, stoped_at=, microtime=
+2022-12-13 18:25:25 | Не удалось записать в БД: taskscheduler_id=33, result_status=, result_text=Создана задача started_at=2022-12-13 18:25:25, stoped_at=, microtime=
+2022-12-13 18:26:06 | Не удалось записать в БД: taskscheduler_id=34, result_status=, result_text=Создана задача started_at=2022-12-13 18:26:06, stoped_at=, microtime=
+2022-12-13 18:30:00 | Не удалось записать в БД: taskscheduler_id=36, result_status=, result_text=Создана задача started_at=2022-12-13 18:30:00, stoped_at=, microtime=

@@ -9,7 +9,6 @@
 
 class B4TaskScheduler
 {
-    // Todo: Добавить режим debug. Расширенные логи, в обычном режиме без них
 
     // Todo: Сделать в БД заглушки client_id
 
@@ -22,7 +21,9 @@ class B4TaskScheduler
     protected $task_count_in_stack = 4; // кол-во одновременно работающих процессов
     protected $process_runtime = 5000; //Продолжительность работы процесса
     protected $process_runing_method = 'proc_open'; // Метод работы с процессами
-    protected $debug_mod = false; // Если True, будет больше сопроводительной информации в выводе и логах
+
+    // Todo: Добавить режим debug. Расширенные логи, в обычном режиме без них
+    public $debug_mod = false; // Если True, будет больше сопроводительной информации в выводе и логах
 
     public $errorlog_path = "b4_error.log"; // Текстовый лог ошибок
 
@@ -74,7 +75,7 @@ class B4TaskScheduler
     {
     }
     /**
-     * Пишет сообщение в лог
+     * Пишет сообщение в лог-файл
      *
      *  TODO: Добавить аргументы в функцию с возможностью логировать в БД
      * @param string $text
@@ -87,7 +88,7 @@ class B4TaskScheduler
         fwrite($handle, $line);
         fclose($handle);
     }
-
+    
     /**
      * Вывод сообщения
      *
@@ -138,16 +139,60 @@ class B4TaskScheduler
 
         $this->task_array = $array;
     }
-
-    public function DB_connect()
+    
+    public function DB_connect(string $host = '', string $dbname = '', string $username = '', string $password = '')
     {
+        if(empty($host)|| empty($dbname)||empty($username)||empty($password)){
+            $host = $this->host;
+            $dbname = $this->dbname;
+            $username = $this->username;
+            $password = $this->password;
+        }
+        
         try {
-            $this->conn = new PDO("mysql:host=$this->host;dbname=$this->dbname", $this->username, $this->password);
+            $this->conn = new PDO("mysql:host={$host};dbname={$dbname}", $username, $password);
             // echo "Connected to $dbname at $host successfully.";
             return $this->conn;
         } catch (PDOException $pe) {
-            die("Could not connect to the database $this->dbname :" . $pe->getMessage());
+            $msg = "Could not connect to the database $this->dbname :" . $pe->getMessage();
+            $this->log_error('error',$msg);
+            die($msg);
         }
+    }
+    
+    /**
+     * Запись лога в БД. 
+     * 
+     * При невозможности писать в БД, пишет в файл $errorlog_path
+     * Метод универсален, сделан чтобы можно ыло писать не только лог по задачам, но и просто фиксировать лог каких-то действий
+     * 
+     * По этой причине таблица taskscheduler не имеет внешней связи с tasckscheduler_log, а также проверяюются элементы массива msg и создаются пустые в случае отсутствия.
+     *
+     * @param array $msg
+     * @return void
+     */
+    public function DB_log(array $msg){
+
+        if(!array_key_exists('taskscheduler_id', $msg))$msg['taskscheduler_id']=NULL;
+        if(!array_key_exists('result_status', $msg))$msg['result_status']=NULL;
+        if(!array_key_exists('result_text', $msg))$msg['result_text']=NULL;
+        if(!array_key_exists('started_at', $msg))$msg['started_at']=NULL;
+        if(!array_key_exists('stoped_at', $msg))$msg['stoped_at']=NULL;
+        if(!array_key_exists('microtime', $msg))$msg['microtime']=NULL;
+
+        $sql = "INSERT INTO `taskscheduler_log` 
+        (`taskscheduler_id`,`result_status`, `result_text`, `started_at`,`stoped_at`,`microtime`)
+        VALUES (?,?,?,?,?,?)";
+        $tsk = [$msg['taskscheduler_id'], $msg['result_status'], $msg['result_text'], $msg['started_at'], $msg['stoped_at'], $msg['microtime']];
+
+        $res = $this->conn->prepare($sql)->execute($tsk);
+
+        // Если по какой-то причине удается записать лог в БД, пишим в файл.
+        if ($res != True){
+            $log_error_message = "Не удалось записать в БД: taskscheduler_id={$msg['taskscheduler_id']}, result_status={$msg['result_status']}, result_text={$msg['result_text']} started_at={$msg['started_at']}, stoped_at={$msg['stoped_at']}, microtime={$msg['microtime']}";
+            $this->log_error($log_error_message);
+        }
+        return $res;
     }
     
     /**
@@ -161,20 +206,45 @@ class B4TaskScheduler
         //TODO: Сделать
         // Берем директорию в которой должны лежать файлы
         // проверяем есть ли там файлы json. Если есть, то берем данные и заливаем в БД
-        // удаляем файл/ перемещаем в подпапку loaded
+        // удаляем файл / перемещаем в подпапку loaded
+    }
+
+    /**
+     * Метод для тестов
+     * 
+     * Ставит задачи с именем test в статус ready
+     *
+     * @return void
+     */
+    public function TEST_TASKS_set_status_ready()
+    {   
+        $sql = "UPDATE `taskscheduler` SET `status`='ready' WHERE `name`='test'";
+        return $this->conn->prepare($sql)->execute();
     }
 
     /**
      * Добавляет задачу
-     *
+     * 
      * @return void
      */
-    public function TASKS_add_tasks($id)
+    public function TASKS_add_tasks(array $task)
     {   
-        // Todo: Сделать метод добавления задачи в бд
-        //TODO: Сделать
-        $sql = "INSERT INTO `taskscheduler` (`user`,`name`, `command`, `running_type`,) VALUES (?,?,?)";
-        return $this->conn->prepare($sql)->execute(['ready', $id]);
+        // $this->conn->beginTransaction();
+        $sql = "INSERT INTO `taskscheduler` (`user`,`name`, `command`, `running_type`,`run_on`,`cron`)
+        VALUES (?,?,?,?,?,?)";
+        $tsk = [$task['user'], $task['name'], $task['command'], $task['running_type'], $task['run_on'], $task['cron']];
+        $res = $this->conn->prepare($sql)->execute($tsk);
+        // $this->conn->commit();
+        if($res == True){
+            $msg=[
+                'taskscheduler_id'=>$this->conn->lastInsertId(),
+                'result_text'=>'Создана задача',
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+            $this->DB_log($msg);
+        }
+        return $res;
+
     }
 
     /**
@@ -184,9 +254,23 @@ class B4TaskScheduler
      */
     public function TASKS_delete_tasks($id)
     {   
-        // Todo: Метод удаления задачи из бд (только те что не выполнены)
-        $sql = "DELETE FROM `taskscheduler` WHERE id=?";
-        return $this->conn->prepare($sql)->execute([$id]);
+        try{
+            $sql = "DELETE FROM `taskscheduler` WHERE id=?";
+            $res = $this->conn->prepare($sql)->execute([$id]);
+            if($res == True){
+                $sql = "DELETE FROM `taskscheduler_log` WHERE `taskscheduler_id`=?";
+                $this->conn->prepare($sql)->execute([$id]);
+            }
+            return $res;
+
+        } catch (Exception $e) {
+            $msg=[
+                'taskscheduler_id'=>$id,
+                'result_text'=>'Не удалось удалить задачу',
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+            $this->DB_log($msg);
+        }
     }
 
     /**
@@ -197,21 +281,78 @@ class B4TaskScheduler
      */
     public function TASKS_clone_task($id)
     {   
-        // Todo: Клонировать задачу, если это не задача по крону
         $sql = 
-        "INSERT INTO `taskscheduler` (`disabled`,`block`,`god_priority`,`priority`,`user`,`command`,`run_on`,`cron`,`status`)
-        SELECT `disabled`,`block`,`god_priority`,`priority`,`user`,`command`,`run_on`,`cron`,'pause' as `status` FROM `taskscheduler` WHERE `id` = ?;
+        "INSERT INTO `taskscheduler` (`disabled`,`block`,`god_priority`,`priority`,`user`,`name`,`command`,`run_on`,`cron`,`status`)
+        SELECT `disabled`,`block`,`god_priority`,`priority`,`user`,`name`,`command`,`run_on`,`cron`,'pause' as `status` FROM `taskscheduler` WHERE `id` = ?;
         ";
-        $this->conn->prepare($sql)->execute([$id]);
+        $res =  $this->conn->prepare($sql)->execute([$id]);
+        if($res == True){
+            $msg=[
+                'taskscheduler_id'=>$this->conn->lastInsertId(),
+                'result_text'=>"Создана задача клонированием задачи {$id}",
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+            $this->DB_log($msg);
+        }
+        return $res;
 
     }
+
+    /**
+     * Метод назначения статусов
+     * 
+     * Не используется, пока ну будут понятны все условия назначения статусов
+     *
+     * @param string $status
+     * @param integer $id
+     * @return void
+     */
+    public function TASKS_set_status(string $status,int $id)
+    {   
+        if(!in_array($status,['ready','started','canceled','declined','pause','inprogress','complete'])) die('wrong status');
+        try {
+            $sql = "UPDATE `taskscheduler` SET `status1`=? WHERE `id`=?";
+            $res = $this->conn->prepare($sql)->execute([$status, $id]);
+            
+            if($res == True){
+                $msg=[
+                    'taskscheduler_id'=>$id,
+                    'result_text'=>"Установлен статус {$status}",
+                    'started_at'=>date("Y-m-d H:i:s")
+                ];
+            }
+            elseif($res == False){
+                $msg=[
+                    'taskscheduler_id'=>$id,
+                    'result_text'=>"Не удалось поставить статус {$status}",
+                    'started_at'=>date("Y-m-d H:i:s")
+                ];
+            }
+            $this->DB_log($msg);
+            
+            return $res;
+        } catch (PDOException $e) {
+        }
+        
+    }
+
     /**
      * Начальный статус. Используется, например, когда нужно вернуть задачу из паузы
      */
     public function TASKS_set_status_ready($id)
     {
-        $sql = "UPDATE taskscheduler SET status=? WHERE id=?";
-        $this->conn->prepare($sql)->execute(['ready', $id]);
+        $sql = "UPDATE `taskscheduler` SET `status`=? WHERE `id`=?";
+        $res = $this->conn->prepare($sql)->execute(['ready', $id]);
+
+        if($res == True){
+            $msg=[
+                'taskscheduler_id'=>$id,
+                'result_text'=>'Установлен статус ready',
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+            $this->DB_log($msg);
+        }
+        return $res;
     }
 
     /**
@@ -222,21 +363,17 @@ class B4TaskScheduler
     public function TASKS_set_status_started($id)
     {
         $sql = "UPDATE taskscheduler SET status=? WHERE id=?";
-        $this->conn->prepare($sql)->execute(['started', $id]);
+        return $this->conn->prepare($sql)->execute(['started', $id]);
     }
     
     public function TASKS_set_status_canceled($id)
     {
-        $sql = "UPDATE taskscheduler SET status=? WHERE id=?";
-        $this->conn->prepare($sql)->execute(['canceled', $id]);
+        $sql = "UPDATE taskscheduler SET `status`=? WHERE id=?";
+        return $this->conn->prepare($sql)->execute(['canceled', $id]);
     }
-
-    /**
-     * Пользователь может остановить выполнение своих задач
-     *
-     */
+    //! Внедри в общий метод назначения
     public function TASKS_set_status_pause($id)
-    {   
+    {
         $sql = "UPDATE taskscheduler SET `status`=? WHERE id=? AND `status` not IN ($this->SQL_status_finish)";
         return $this->conn->prepare($sql)->execute(['pause', $id]);
     }
@@ -263,21 +400,54 @@ class B4TaskScheduler
     }
 
 
-    
-
     public function TASKS_disable_switch($id)
     {
         $sql = "UPDATE taskscheduler SET `disabled`=IF(`disabled`>0,0,1) WHERE id=? AND `status` NOT IN ($this->SQL_status_finish)";
-        return $this->conn->prepare($sql)->execute([$id]);
+        $res = $this->conn->prepare($sql)->execute([$id]);
+
+        if($res == True){
+            $msg=[
+                'taskscheduler_id'=>$id,
+                'result_text'=>"Задача включена/выключена",
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+        }
+        elseif($res == False){
+            $msg=[
+                'taskscheduler_id'=>$id,
+                'result_text'=>"Не удалось использовать переключатель включено/выключено",
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+        }
+        $this->DB_log($msg);
+        
+        return $res;
     }
 
     public function TASKS_block_switch($id)
     {   
         // Todo: Заблокировать задачу в БД(одну (ид записи), список(ид записей), все(all)) . Блокируются только невыполненные
         $sql = "UPDATE taskscheduler SET `block`=IF(`block`>0,0,1) WHERE id=?";
-        return $res = $this->conn->prepare($sql)->execute([$id]);
-    }
+        $res = $this->conn->prepare($sql)->execute([$id]);
 
+        if($res == True){
+            $msg=[
+                'taskscheduler_id'=>$id,
+                'result_text'=>"Задача заблокирована/разблокирована",
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+        }
+        elseif($res == False){
+            $msg=[
+                'taskscheduler_id'=>$id,
+                'result_text'=>"Не удалось использовать переключатель блокировка/разблокировка",
+                'started_at'=>date("Y-m-d H:i:s")
+            ];
+        }
+        $this->DB_log($msg);
+        
+        return $res;
+    }
 
     /**
      * Загружает задачи из БД
@@ -288,11 +458,11 @@ class B4TaskScheduler
     {
         $db_array = [];
 
-        $conn = $this->DB_connect();
+        // $conn = $this->DB_connect();
 
-        $res = $conn->query("
+        $res = $this->conn->query("
 
-        SELECT `id`, `command`, `cron`, `run_on`,`status`
+        SELECT `id`, `command`, `running_type`, `cron`, `run_on`,`status`
         FROM `taskscheduler`
         WHERE
             disabled = 0
@@ -390,14 +560,15 @@ class B4TaskScheduler
      */
     public function check_task_array()
     {
+        // $this->task_array=[];
         if (empty($this->task_array)) {
-            $this->send_message('error', 'Task array is empty');
+            $text='Task array is empty';
+            $this->send_message('error', $text);
+            $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
             exit();
         }
 
         foreach ($this->task_array as $task_array_id => &$task_data) {
-
-            // print_r($task_data);
 
             if (!isset($task_data['id']) or empty($task_data['id'])) {
                 $this->send_message('error', "Array index {$task_array_id}: field 'id' is missing or empty");
@@ -407,6 +578,12 @@ class B4TaskScheduler
 
             if (!array_key_exists('command', $task_data) or empty($task_data['command'])) {
                 $this->send_message('error', "Task {$task_data['id']}: 'command' field is missing or empty");
+                unset($this->task_array[$task_array_id]);
+                continue;
+            }
+            
+            if (!array_key_exists('running_type', $task_data)) {
+                $this->send_message('error', "Task {$task_data['id']}: 'running_type' field is missing");
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
@@ -429,27 +606,39 @@ class B4TaskScheduler
                 continue;
             }
 
-            // print_r($this->task_array);
             $now_datetime = date("Y-m-d H:i:00");
-            if (empty($task_data['cron']) and empty($task_data['run_on'])) {
+            //Определяем тип задачи: моментальная, по дате или крон
+            if(empty($task_data['running_type'])||$task_data['running_type']=='now'){
                 // Todo: Выполняется разовая задача
-            } elseif (empty($task_data['cron']) and !empty($task_data['run_on'])) {
+            }
+            elseif($task_data['runing_type']=='run_on'){
+                // Todo Выполняется задача по расписанию
+                // Todo: Возможно проверить на исполнение
                 // Todo: Правильнее сделать выборку из БД, если подходящие услвоия
+
+                //Проверяем дату на соответствие. Вообще всё это проверяется еще при выборке из БД
                 if($task_data['run_on'] != $now_datetime){
-                    $this->send_message('error', "Task {$task_data['id']}: 'wrong date.'");
+                    $this->send_message('error', "Task {$task_data['id']}: wrong date.");
                     unset($this->task_array[$task_array_id]);
                 }
-            } elseif (empty($task_data['run_on']) and !empty($task_data['cron'])) {
-                // Todo: Выполняется задача по крону, если совпадает с условиями
-                
-            } else {
-                // Todo: Записать в БД прочие ошибки и изменить статус задачи на canceled
+            }
+            elseif($task_data['running_type']=='cron'){
+                // Todo: Проверить, правильный ли крон
+            }
+            else{
+                // Todo: Сформировать ошибку в лог и остановить задачу
+                // Todo: Записать в БД прочие ошибки и изменить статус задачи на declined
+                $this->send_message('error', "Task {$task_data['id']}: wrong 'running_type'");
+                if($this->TASKS_set_status_declined($task_data['id'])==1){
+                    //log
+                    // $this->log_error()
+                    unset($this->task_array[$task_array_id]);
+                }
             }
 
-            // print_r($task_data);
-
-            // die();
         }
+        print_r($this->task_array);
+        die();
     }
 
     /**
@@ -523,15 +712,6 @@ class B4TaskScheduler
     {
         if (PHP_ZTS == 0) {
             $this->select_process_runing_method = 'proc_open';
-        } elseif (PHP_ZTS == 1 && ((PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION > 7)) {
-            $this->select_process_runing_method = 'parallel';
-        } else {
-            $this->select_process_runing_method = 'ptreads';
-        }
-        echo $this->select_process_runing_method . PHP_EOL;
-
-        if (PHP_ZTS == 0) {
-            $this->select_process_runing_method = 'proc_open';
         }
         else{
             // Todo: Добавить проверку на поиск модулей pthreads и parallel в директориях
@@ -542,7 +722,8 @@ class B4TaskScheduler
                 $this->select_process_runing_method = 'ptreads';
             }
         }
-        echo $this->select_process_runing_method . PHP_EOL;
+
+        if($this->debug_mod) echo $this->select_process_runing_method . PHP_EOL;
     }
 }
 
@@ -559,26 +740,75 @@ if ($argv && $argv[0] && realpath($argv[0]) === __FILE__) {
     {
     }
 
-    $file = 'commands.json';
     $job = new Tsk;
+
+    $job->debug_mod = True;
+
     // $job = new B4TaskScheduler;
+    
     $job->DB_connect();
+    
+    $test_log_msg = [
+        // 'taskscheduler_id'=>,
+        'result_status'=>'1',
+        'result_text'=>'Что-то получили от программы',
+        'started_at'=>date("Y-m-d H:i:00"),
+        'stoped_at'=>date("Y-m-d H:i:01"),
+        'microtime'=>'qweasd'
+    ];
+    // $job->DB_log($test_log_msg);
+
+
+
+    // Переводим тестовые задачи в ready, чтобы использовать существующие задачи для тестирования.
+    // $job->TEST_TASKS_set_status_ready();
 
     // выясняем метод работы
     $job->get_process_runing_method();
-    // die();
-    //загружаем задачи из json
+    
+    // загружаем задачи из json
+    // $file = 'commands.json';
     // $job->load_from_json($file);
+    
+    // Ставим задачу на паузу
+    // $job->TASKS_set_status_pause(3);
 
-        // $job->TASKS_set_status_pause(3);
-        // $job->TASKS_disable_switch(3);
-        // $job->TASKS_clone_task(10);
-        // $job->TASKS_block_switch(10);
-        $job->TASKS_delete_tasks(12);
-    // загружаем задачи из БД
-    // $job->DB_get_tasks();
+    // Ставим статус ready
+    // $job->TASKS_set_status_ready(45);
+    // $job->TASKS_set_status('pause',45);
 
+    // Включаем / выключаем задачу
+    // $job->TASKS_disable_switch(3);
+
+    // Клонируем задачу
+    // $job->TASKS_clone_task(10);
+
+    //Блокируем/разблокируем задачу
+    // $job->TASKS_block_switch(45);
+
+    // Удаляем задачу
+    // $job->TASKS_delete_tasks(12);
+
+    
+    //Создаем задачу
+    $test_task=[
+        'user'=>0,
+        'name'=>'test',
+        'command'=>'sleep 1',
+        'running_type'=>'cron',
+        'run_on'=>date("Y-m-d H:i:00"),
+        'cron'=>"* * * * *"
+        
+    ];
+    // $job->TASKS_add_tasks($test_task);
+    // for ($i=34;$i>11;$i--)
+        // $job->TASKS_delete_tasks($i);
+    
+    
+    // Берем список задач
+    $job->DB_get_tasks();
+    
     // запускаем на исполение
-    // $job->run_procs();
+    $job->run_procs();
 
 } // end testing
