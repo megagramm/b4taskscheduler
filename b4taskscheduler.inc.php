@@ -5,56 +5,58 @@
  * Yuri Morin yurkiywork@gmail.com
  *
  * Менеджер задач. Запускает задачи по расписанию в несколько потоков.
- *
- * //! Восклицательный знак выделяет красным
- *
  */
 
 class B4TaskScheduler
 {
-    // Todo: Переделать добавление из json на добавление задач из определенной папки всех файлов json. Если в папке есть файл, добавляются задачи из него в БД. Исходный файл удаляется. Ошибочные файлы пишутся в лог.
-
     // Todo: Добавить режим debug. Расширенные логи, в обычном режиме без них
-
-    // Todo: Сделать метод добавления задачи в бд
-
-    // Todo: Метод удаления задачи из бд (только те что не выполнены)
-
-    // Todo: Сделать метод постановки задачи на паузу
-
-    // Todo: Блокировка задач администраторм системы
-
-    // Todo: Заблокировать задачу в БД(одну (ид записи), список(ид записей), все(all)) . Блокируются только невыполненные
-
-    // Todo: Разблокировать задачу в БД(одну (ид записи), список(ид записей), все(all)) . Блокируются только невыполненные
-
-    // Todo: Клонировать задачу, если это не задача по крону
 
     // Todo: Сделать в БД заглушки client_id
 
     // Todo: Переделать методы с учетом привиллегий пользователей
 
+    // Todo: Делать проверки задач, которые выполнялись по крону и которые больше никогда по этому крону не будут выполненны. Например цикличные задачи на 2020-й год
+
+    // Todo: Делать проверку задач по датам старта, будут ли они когда-нибудь выполненны?
+
     protected $task_count_in_stack = 4; // кол-во одновременно работающих процессов
+    protected $process_runtime = 5000; //Продолжительность работы процесса
     protected $process_runing_method = 'proc_open'; // Метод работы с процессами
     protected $debug_mod = false; // Если True, будет больше сопроводительной информации в выводе и логах
 
     public $errorlog_path = "b4_error.log"; // Текстовый лог ошибок
 
-    protected $path_to_json_files = __DIR__ . '/tasks_jsons/' . PHP_EOL; // Путь к файлам с задачами для загрузки в БД
+    protected $path_to_json_files = __DIR__ . '/tasks_jsons/'; // Путь к файлам с задачами для загрузки в БД
 
     protected $task_array = []; // массив всех задач
     protected $task_array_empty = false; //Если тру, не позволяем работать с массивом задач
     protected $task_stack = []; // массив задач в работе, ограничен $task_count_in_stack
     protected $tasks_completed = []; // массив выполненных задач
 
+    
     // Подключение к БД
+    protected $conn; // Активное подключение
+
     private $host = 'localhost';
     private $dbname = 'b4com';
     private $username = 'b4com';
     private $password = 'qwerty';
 
-    private $SQL_status_all = "'ready','started','canceled','pause','inprogress','complete'"; // просто подсказка по статусам
+    private $SQL_status_all = "
+            'ready',".                 // Начальный статус
+            "'started',".              // Статус означает что задача запущена
+            "'canceled',".             // Отмененный. Пользователь отменил задачу.
+            "'declined',".             // Отклоненный статус. Программа отклонила выполнение задачи
+            "'pause',".                // Задача поставлена на паузу
+            "'inprogress',".           // Задача в работе. Цизадача которая выполняется в цикле.
+            "'complete'";              // Законеченная задача
     private $SQL_status_work = "'ready','started','inprogress'"; // рабочие статусы
+    private $SQL_status_finish = "'canceled','declined','complete'"; //законченные статусы
+
+    private $SQL_running_methods = "
+            'now',".                    //  Немедленно
+            "'run_on',".                //  В опрелеленную дату и время
+            "'cron'";                   //  По крону
 
     //подготовка proc_open
     public $descriptorspec = [
@@ -103,8 +105,10 @@ class B4TaskScheduler
         echo json_encode($output) . PHP_EOL;
     }
 
+
     /**
      * Загружаем данные из json
+     * устаревший и ненужный метод
      *
      *
      * @param string $file
@@ -138,13 +142,142 @@ class B4TaskScheduler
     public function DB_connect()
     {
         try {
-            $conn = new PDO("mysql:host=$this->host;dbname=$this->dbname", $this->username, $this->password);
+            $this->conn = new PDO("mysql:host=$this->host;dbname=$this->dbname", $this->username, $this->password);
             // echo "Connected to $dbname at $host successfully.";
-            return $conn;
+            return $this->conn;
         } catch (PDOException $pe) {
             die("Could not connect to the database $this->dbname :" . $pe->getMessage());
         }
     }
+    
+    /**
+     * Проверяет директорию на наличие json файлов. 
+     * Если есть, загружвет их в БД, перед запуском задач
+     *  
+     */
+    public function DB_load_tasks_from_path()
+    {
+        // Todo: Переделать добавление из json на добавление задач из определенной папки всех файлов json. Если в папке есть файл, добавляются задачи из него в БД. Исходный файл удаляется. Ошибочные файлы пишутся в лог.
+        //TODO: Сделать
+        // Берем директорию в которой должны лежать файлы
+        // проверяем есть ли там файлы json. Если есть, то берем данные и заливаем в БД
+        // удаляем файл/ перемещаем в подпапку loaded
+    }
+
+    /**
+     * Добавляет задачу
+     *
+     * @return void
+     */
+    public function TASKS_add_tasks($id)
+    {   
+        // Todo: Сделать метод добавления задачи в бд
+        //TODO: Сделать
+        $sql = "INSERT INTO `taskscheduler` (`user`,`name`, `command`, `running_type`,) VALUES (?,?,?)";
+        return $this->conn->prepare($sql)->execute(['ready', $id]);
+    }
+
+    /**
+     * Удаляет задачи
+     *
+     * @return void
+     */
+    public function TASKS_delete_tasks($id)
+    {   
+        // Todo: Метод удаления задачи из бд (только те что не выполнены)
+        $sql = "DELETE FROM `taskscheduler` WHERE id=?";
+        return $this->conn->prepare($sql)->execute([$id]);
+    }
+
+    /**
+     * Клонирование существующей задачи.
+     * Статус при этом ставится в паузу
+     *
+     * @return void
+     */
+    public function TASKS_clone_task($id)
+    {   
+        // Todo: Клонировать задачу, если это не задача по крону
+        $sql = 
+        "INSERT INTO `taskscheduler` (`disabled`,`block`,`god_priority`,`priority`,`user`,`command`,`run_on`,`cron`,`status`)
+        SELECT `disabled`,`block`,`god_priority`,`priority`,`user`,`command`,`run_on`,`cron`,'pause' as `status` FROM `taskscheduler` WHERE `id` = ?;
+        ";
+        $this->conn->prepare($sql)->execute([$id]);
+
+    }
+    /**
+     * Начальный статус. Используется, например, когда нужно вернуть задачу из паузы
+     */
+    public function TASKS_set_status_ready($id)
+    {
+        $sql = "UPDATE taskscheduler SET status=? WHERE id=?";
+        $this->conn->prepare($sql)->execute(['ready', $id]);
+    }
+
+    /**
+     * Когдла программа начинает работать назначает статус после ready
+     *
+     * @return void
+     */
+    public function TASKS_set_status_started($id)
+    {
+        $sql = "UPDATE taskscheduler SET status=? WHERE id=?";
+        $this->conn->prepare($sql)->execute(['started', $id]);
+    }
+    
+    public function TASKS_set_status_canceled($id)
+    {
+        $sql = "UPDATE taskscheduler SET status=? WHERE id=?";
+        $this->conn->prepare($sql)->execute(['canceled', $id]);
+    }
+
+    /**
+     * Пользователь может остановить выполнение своих задач
+     *
+     */
+    public function TASKS_set_status_pause($id)
+    {   
+        $sql = "UPDATE taskscheduler SET `status`=? WHERE id=? AND `status` not IN ($this->SQL_status_finish)";
+        return $this->conn->prepare($sql)->execute(['pause', $id]);
+    }
+
+    public function TASKS_set_status_inprogress($id)
+    {
+        $sql = "UPDATE taskscheduler SET `status`=? WHERE id=?";
+        return $this->conn->prepare($sql)->execute(['inprogress', $id]);
+    }
+
+    public function TASKS_set_status_complete($id)
+    {
+        $sql = "UPDATE taskscheduler SET `status`=? WHERE id=?";
+        return $this->conn->prepare($sql)->execute(['complete', $id]);
+    }
+
+    /**
+     * В случае ошибки в задаче или в тригере запуска, программа ставит этот статус
+     */
+    public function TASKS_set_status_declined($id)
+    {
+        $sql = "UPDATE taskscheduler SET `status`=? WHERE id=?";
+        return $this->conn->prepare($sql)->execute(['declined', $id]);
+    }
+
+
+    
+
+    public function TASKS_disable_switch($id)
+    {
+        $sql = "UPDATE taskscheduler SET `disabled`=IF(`disabled`>0,0,1) WHERE id=? AND `status` NOT IN ($this->SQL_status_finish)";
+        return $this->conn->prepare($sql)->execute([$id]);
+    }
+
+    public function TASKS_block_switch($id)
+    {   
+        // Todo: Заблокировать задачу в БД(одну (ид записи), список(ид записей), все(all)) . Блокируются только невыполненные
+        $sql = "UPDATE taskscheduler SET `block`=IF(`block`>0,0,1) WHERE id=?";
+        return $res = $this->conn->prepare($sql)->execute([$id]);
+    }
+
 
     /**
      * Загружает задачи из БД
@@ -240,10 +373,10 @@ class B4TaskScheduler
         // добавляем в стек задачу
         $this->task_stack[] = $task[0];
 
-        // правильно берем последний элементы стека для создания процесса
+        // правильно берем последний элементы стека для создания процесса (метод до php 7.3 , далее array_key_last)
         $last_id_of_task_stack = array_keys($this->task_stack)[count($this->task_stack) - 1];
 
-        // запустить процесс
+        // создать процесс
         $this->make_proc($this->task_stack[$last_id_of_task_stack], $last_id_of_task_stack);
     }
 
@@ -264,7 +397,7 @@ class B4TaskScheduler
 
         foreach ($this->task_array as $task_array_id => &$task_data) {
 
-            print_r($task_data);
+            // print_r($task_data);
 
             if (!isset($task_data['id']) or empty($task_data['id'])) {
                 $this->send_message('error', "Array index {$task_array_id}: field 'id' is missing or empty");
@@ -300,10 +433,15 @@ class B4TaskScheduler
             $now_datetime = date("Y-m-d H:i:00");
             if (empty($task_data['cron']) and empty($task_data['run_on'])) {
                 // Todo: Выполняется разовая задача
-            } elseif (empty($task_data['cron']) and !empty($task_data['run_on']) and $task_data['run_on'] == $now_datetime) {
+            } elseif (empty($task_data['cron']) and !empty($task_data['run_on'])) {
                 // Todo: Правильнее сделать выборку из БД, если подходящие услвоия
+                if($task_data['run_on'] != $now_datetime){
+                    $this->send_message('error', "Task {$task_data['id']}: 'wrong date.'");
+                    unset($this->task_array[$task_array_id]);
+                }
             } elseif (empty($task_data['run_on']) and !empty($task_data['cron'])) {
                 // Todo: Выполняется задача по крону, если совпадает с условиями
+                
             } else {
                 // Todo: Записать в БД прочие ошибки и изменить статус задачи на canceled
             }
@@ -391,6 +529,20 @@ class B4TaskScheduler
             $this->select_process_runing_method = 'ptreads';
         }
         echo $this->select_process_runing_method . PHP_EOL;
+
+        if (PHP_ZTS == 0) {
+            $this->select_process_runing_method = 'proc_open';
+        }
+        else{
+            // Todo: Добавить проверку на поиск модулей pthreads и parallel в директориях
+            if (version_compare(PHP_VERSION, '7.2.0') >= 0) {
+                $this->select_process_runing_method = 'parallel';
+            }
+            else{
+                $this->select_process_runing_method = 'ptreads';
+            }
+        }
+        echo $this->select_process_runing_method . PHP_EOL;
     }
 }
 
@@ -410,17 +562,23 @@ if ($argv && $argv[0] && realpath($argv[0]) === __FILE__) {
     $file = 'commands.json';
     $job = new Tsk;
     // $job = new B4TaskScheduler;
+    $job->DB_connect();
 
     // выясняем метод работы
-    // $job->get_process_runing_method();
-
+    $job->get_process_runing_method();
+    // die();
     //загружаем задачи из json
     // $job->load_from_json($file);
 
+        // $job->TASKS_set_status_pause(3);
+        // $job->TASKS_disable_switch(3);
+        // $job->TASKS_clone_task(10);
+        // $job->TASKS_block_switch(10);
+        $job->TASKS_delete_tasks(12);
     // загружаем задачи из БД
-    $job->DB_get_tasks();
+    // $job->DB_get_tasks();
 
     // запускаем на исполение
-    $job->run_procs();
+    // $job->run_procs();
 
 } // end testing
