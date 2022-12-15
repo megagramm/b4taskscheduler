@@ -10,7 +10,7 @@
 class B4TaskScheduler
 {
 
-    // Todo: Сделать в БД заглушки client_id
+    // Todo: Понять и настроить взаимодействие с ACL
 
     // Todo: Переделать методы с учетом привиллегий пользователей
 
@@ -27,7 +27,7 @@ class B4TaskScheduler
 
     public $errorlog_path = "b4_error.log"; // Текстовый лог ошибок
 
-    protected $path_to_json_files = __DIR__ . '/tasks_jsons/'; // Путь к файлам с задачами для загрузки в БД
+    protected $path_to_json_files = __DIR__ . '/tasks_json/'; // Путь к файлам с задачами для загрузки в БД
 
     protected $task_array = []; // массив всех задач
     protected $task_array_empty = false; //Если тру, не позволяем работать с массивом задач
@@ -43,19 +43,19 @@ class B4TaskScheduler
     private $username = 'b4com';
     private $password = 'qwerty';
 
-    private $SQL_status_all = "
-            'ready',".                 // Начальный статус
+    public $SQL_status_all = "".
+            "'ready',".                 // Начальный статус
             "'started',".              // Статус означает что задача запущена
             "'canceled',".             // Отмененный. Пользователь отменил задачу.
             "'declined',".             // Отклоненный статус. Программа отклонила выполнение задачи
             "'pause',".                // Задача поставлена на паузу
             "'inprogress',".           // Задача в работе. Цизадача которая выполняется в цикле.
             "'complete'";              // Законеченная задача
-    private $SQL_status_work = "'ready','started','inprogress'"; // рабочие статусы
-    private $SQL_status_finish = "'canceled','declined','complete'"; //законченные статусы
+    public $SQL_status_work = "'ready','started','inprogress'"; // рабочие статусы
+    public $SQL_status_finish = "'canceled','declined','complete'"; //законченные статусы
 
-    private $SQL_running_methods = "
-            'now',".                    //  Немедленно
+    private $SQL_running_methods = "".
+            "'now',".                    //  Немедленно
             "'run_on',".                //  В опрелеленную дату и время
             "'cron'";                   //  По крону
 
@@ -77,7 +77,6 @@ class B4TaskScheduler
     /**
      * Пишет сообщение в лог-файл
      *
-     *  TODO: Добавить аргументы в функцию с возможностью логировать в БД
      * @param string $text
      * @return void
      */
@@ -110,7 +109,6 @@ class B4TaskScheduler
     /**
      * Загружаем данные из json
      * устаревший и ненужный метод
-     *
      *
      * @param string $file
      * @return array
@@ -198,7 +196,10 @@ class B4TaskScheduler
     /**
      * Проверяет директорию на наличие json файлов. 
      * Если есть, загружвет их в БД, перед запуском задач
-     *  
+     * 
+     * Файлы импортированные, перемещаем в папку added
+     * Файлы, чья структура не подходит перемещаем в папку missed
+     * 
      */
     public function DB_load_tasks_from_path()
     {
@@ -207,6 +208,51 @@ class B4TaskScheduler
         // Берем директорию в которой должны лежать файлы
         // проверяем есть ли там файлы json. Если есть, то берем данные и заливаем в БД
         // удаляем файл / перемещаем в подпапку loaded
+        //если файл ны относятся к json, перемещаем их в 
+        $f = scandir($this->path_to_json_files);
+        foreach($f as $id=>&$file){
+            if (in_array($file,['.','..'])) {
+                unset($f[$id]);
+                continue;
+            }
+            if(!preg_match('/\.json$/',$file)){
+                unset($f[$id]);
+                continue;
+            }
+        }
+        print_r($f);
+
+        foreach($f as &$file){
+            // Проверяем структура файла
+
+            $file_data = trim(file_get_contents($this->path_to_json_files.$file));
+            if (empty($file_data)) {
+                $this->send_message('error', 'File is empty');
+                //переместить в missed
+                rename($this->path_to_json_files.$file,$this->path_to_json_files.'missed/'.date("Y-m-d_H:i:s_").$file);
+                continue;
+            }
+
+            $array = json_decode($file_data, true);
+            if (!is_array($array)) {
+                $this->send_message('error', 'JSON doesn`t decoded');
+                rename($this->path_to_json_files.$file,$this->path_to_json_files.'missed/'.date("Y-m-d_H:i:s_").$file);
+                continue;
+            }
+
+            
+
+            // if (!array_key_exists('command', $task_data) or empty($task_data['command'])) {
+            //     $text = "Task {$task_data['id']}: 'command' field is missing or empty";
+            //     $this->send_message('error', $text);
+            //     $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
+            //     unset($this->task_array[$task_array_id]);
+            //     continue;
+            // }
+
+
+        }
+
     }
 
     /**
@@ -299,6 +345,19 @@ class B4TaskScheduler
     }
 
     /**
+     * Просто переводит строку $this->SQL_status_all в массив
+     *
+     * @param string $string
+     * @return array
+     */
+    public function status_string_to_array(string $string){
+        $arr = explode(',',$string);
+        foreach ($arr as &$value){
+            $value = trim($value,"'");
+        }
+        return $arr;
+    }
+    /**
      * Метод назначения статусов
      * 
      * Не используется, пока ну будут понятны все условия назначения статусов
@@ -309,9 +368,12 @@ class B4TaskScheduler
      */
     public function TASKS_set_status(string $status,int $id)
     {   
-        if(!in_array($status,['ready','started','canceled','declined','pause','inprogress','complete'])) die('wrong status');
+        // Todo: Переделать, чтобы использовался массив из $this->SQL_status_all
+        // $arr = $this->status_string_to_array($this->SQL_status_all);
+        if (!in_array($status, $this->status_string_to_array($this->SQL_status_all))) die('wrong status');
+        // if(!in_array($status,['ready','started','canceled','declined','pause','inprogress','complete'])) die('wrong status');
         try {
-            $sql = "UPDATE `taskscheduler` SET `status1`=? WHERE `id`=?";
+            $sql = "UPDATE `taskscheduler` SET `status`=? WHERE `id`=?";
             $res = $this->conn->prepare($sql)->execute([$status, $id]);
             
             if($res == True){
@@ -371,6 +433,7 @@ class B4TaskScheduler
         $sql = "UPDATE taskscheduler SET `status`=? WHERE id=?";
         return $this->conn->prepare($sql)->execute(['canceled', $id]);
     }
+
     //! Внедри в общий метод назначения
     public function TASKS_set_status_pause($id)
     {
@@ -495,6 +558,15 @@ class B4TaskScheduler
         array_splice($this->task_array, 0, $this->task_count_in_stack);
     }
 
+
+    public function return_microtime_string(float $started_at):string
+    {   
+        $stoped_at = microtime(True);
+        $minus = $stoped_at - $started_at;
+        $microtime = "{$started_at} {$stoped_at} {$minus}";
+        return $microtime;
+    }
+
     /**
      * Создаем процесс
      *
@@ -503,7 +575,9 @@ class B4TaskScheduler
      * @return void
      */
     public function make_proc(&$task_data, &$task_stack_id)
-    {
+    {   
+        $task_data['microtime'] = microtime(true);
+        $task_data['started_at']=date("Y-m-d H:i:s");
         echo 'Stack id is ' . $task_stack_id . ', task_id is ' . $task_data['id'] . ' command: ' . $task_data['command'] . PHP_EOL;
         // print_r ($task_data);
 
@@ -512,6 +586,9 @@ class B4TaskScheduler
 
         if (!is_resource($task_data['process'])) {
             $this->send_message("error", "process is missing. Task {$task_data['id']} skipped");
+            // Todo: ???? Добавить лог неудачного создания процесса
+
+
             unset($this->task_stack[$task_stack_id]);
         }
 
@@ -570,38 +647,52 @@ class B4TaskScheduler
 
         foreach ($this->task_array as $task_array_id => &$task_data) {
 
+            // Todo: Добавить простановку статуса declined
+
             if (!isset($task_data['id']) or empty($task_data['id'])) {
-                $this->send_message('error', "Array index {$task_array_id}: field 'id' is missing or empty");
+                $text = "Array index {$task_array_id}: field 'id' is missing or empty";
+                $this->send_message('error', $text);
+                $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
 
             if (!array_key_exists('command', $task_data) or empty($task_data['command'])) {
-                $this->send_message('error', "Task {$task_data['id']}: 'command' field is missing or empty");
+                $text = "Task {$task_data['id']}: 'command' field is missing or empty";
+                $this->send_message('error', $text);
+                $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
             
             if (!array_key_exists('running_type', $task_data)) {
-                $this->send_message('error', "Task {$task_data['id']}: 'running_type' field is missing");
+                $text = "Task {$task_data['id']}: 'running_type' field is missing";
+                $this->send_message('error', $text);
+                $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
 
             if (!array_key_exists('run_on', $task_data)) {
-                $this->send_message('error', "Task {$task_data['id']}: 'run_on' field is missing");
+                $text = "Task {$task_data['id']}: 'run_on' field is missing";
+                $this->send_message('error', $text);
+                $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
 
             if (!array_key_exists('cron', $task_data)) {
-                $this->send_message('error', "Task {$task_data['id']}: 'cron' field is missing");
+                $text = "Task {$task_data['id']}: 'cron' field is missing";
+                $this->send_message('error', $text);
+                $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
 
             if (!array_key_exists('status', $task_data) or empty($task_data['status'])) {
-                $this->send_message('error', "Task {$task_data['id']}: 'status' field is missing or empty");
+                $text = "Task {$task_data['id']}: 'status' field is missing or empty";
+                $this->send_message('error', $text);
+                $this->DB_log(['result_text'=>$text,'started_at'=>date("Y-m-d H:i:s")]);
                 unset($this->task_array[$task_array_id]);
                 continue;
             }
@@ -612,11 +703,10 @@ class B4TaskScheduler
                 // Todo: Выполняется разовая задача
             }
             elseif($task_data['runing_type']=='run_on'){
-                // Todo Выполняется задача по расписанию
-                // Todo: Возможно проверить на исполнение
-                // Todo: Правильнее сделать выборку из БД, если подходящие услвоия
+                // Todo Выполняется задача по дате и времени
 
-                //Проверяем дату на соответствие. Вообще всё это проверяется еще при выборке из БД
+                // Проверка не нужна. проверяется выборкой из БД
+
                 if($task_data['run_on'] != $now_datetime){
                     $this->send_message('error', "Task {$task_data['id']}: wrong date.");
                     unset($this->task_array[$task_array_id]);
@@ -624,6 +714,8 @@ class B4TaskScheduler
             }
             elseif($task_data['running_type']=='cron'){
                 // Todo: Проверить, правильный ли крон
+
+
             }
             else{
                 // Todo: Сформировать ошибку в лог и остановить задачу
@@ -791,24 +883,27 @@ if ($argv && $argv[0] && realpath($argv[0]) === __FILE__) {
 
     
     //Создаем задачу
-    $test_task=[
-        'user'=>0,
-        'name'=>'test',
-        'command'=>'sleep 1',
-        'running_type'=>'cron',
-        'run_on'=>date("Y-m-d H:i:00"),
-        'cron'=>"* * * * *"
-        
-    ];
+    // $test_task=[
+    //     'user'=>0,
+    //     'name'=>'test',
+    //     'command'=>'sleep 1',
+    //     'running_type'=>'cron',
+    //     'run_on'=>date("Y-m-d H:i:00"),
+    //     'cron'=>"* * * * *"
+    // ];
     // $job->TASKS_add_tasks($test_task);
+
+    // Удаляем задачу
     // for ($i=34;$i>11;$i--)
         // $job->TASKS_delete_tasks($i);
     
     
     // Берем список задач
-    $job->DB_get_tasks();
+    // $job->DB_get_tasks();
     
     // запускаем на исполение
-    $job->run_procs();
+    // $job->run_procs();
+
+    $job->DB_load_tasks_from_path();
 
 } // end testing
